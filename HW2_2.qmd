@@ -1,0 +1,153 @@
+---
+title: "HW2"
+date: today
+author: Jiang, Tai-Jia
+format:
+ pdf:
+    latex-engine: xelatex  
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+mainfont: "Microsoft JhengHei UI"
+toc: true
+---
+
+1.  分析所有候選人的知名度、支持度。
+
+將檔案讀取並檢查。由summary()可以看出，此資料多為類別型變數。
+
+```{r setup, include=FALSE}
+library(showtext)
+showtext_auto()
+par(family = "STKaiti")
+```
+
+```{r}
+#讀取檔案
+library(readxl)
+data <- read_excel("C:/Users/zach1/Downloads/cleaned_dataset.xlsx")
+head(data)
+summary(data)
+```
+
+將問題5(若明天就要投票，請問您會把票投給誰?)做為候選人的支持度，並分別列出由小到大的表
+
+格、樣本比例表格與次數的直條圖。
+
+```{r fig.width=10, fig.height=15}
+sort(table(data$v5),decreasing = T)
+round(sort(table(data$v5),decreasing = T)/length(data$v1),digits = 4)
+barplot(table(data$v5))
+```
+
+若將樣本比例以圓餅圖表示(如下)，則可以發現去除"無反應"與"尚未決定"的選項，以3號候選人所
+
+佔比例最大(12.27%)，其次為7號候選人(11.67%)。
+
+```{r}
+pie(sort(table(data$v5)),cex=0.7)
+legend("topleft",legend=c("尚未決定:32.79%","無反應:16.10%","3號:12.27%",
+                          "7號:11.67%","1號:9.46%","6號:5.86%","4號:4.73%",
+                          "10號:3.17%","5號:1.97%","91:0.60%","2號:0.54%",
+                          "9號:0.48%","8號:0.36%"),cex = 0.7)
+
+```
+
+接著，假設這10位候選人與"無反應"、"尚未決定"和"91"服從Multinomial distribution，如下Eq(1)
+
+所示，則可以進行區間估計，如Eq(2)所示。
+
+$$
+\text{}\textbf{X} \sim  Multinom(n,\textbf{p}), \text{where} \textbf{ p} \text{ equals to } \text{}[p_{1},p_{2},...,p_{12}]. \text{         }(1)
+$$
+
+$$
+\text{}\hat{se}\text{}(X_{i}) \text{}=\sqrt{\frac{\hat{p_{i}}(\hat{p_{i}}-1)}{n}}\text{}, C.I.(\large{p_{i}})=\hat{p_{i}}\pm Z_{\frac{\alpha}{2}}(2)
+$$\
+
+計算 $p_{i}$ 的 confidence interval
+
+```{r}
+n <- length(data$v1)
+p <- sort(table(data$v5),decreasing = T)/n
+se <- ((p*(1-p))/n)^0.5
+lower <- p-1.96*se
+upper <- p+1.96*se
+round(se,3)
+CI <- data.frame(matrix(ncol=1))
+for (i in 1:13){
+   CI[i] <- paste("[",round(lower[i],digits = 3),",",round(upper[i],3),"]") 
+}
+colnames(CI) <- c("尚未決定","無反應","3號","7號","1號","6號","4號","10號","5號","91","2號","9號","8號")
+
+CI
+```
+
+使用地圖進行競選策略規劃。
+
+```{r}
+library(sf)
+#讀地圖檔
+map <- st_read("C:/Users/zach1/Desktop/統計/空間地圖/村(里)界(TWD97經緯度)1130807/VILLAGE_NLSC_1130807.shp")
+map <- map[map$COUNTYNAME=="臺南市",]
+map <- map[map$TOWNNAME=="北區"|map$TOWNNAME=="中西區",]
+```
+
+```{r}
+#將選擇三號的受訪者建立次數的dataframe
+#並把次數併入地圖檔案中，方便後續繪製
+candidate_3_data <- data[data$v5=="(3號)",]
+num <- data.frame(table(c(candidate_3_data$v2,candidate_3_data$v3)))
+num <- num[c(-33,-48,-10),]
+colnames(num) <- c("VILLNAME", "Freq")
+map <- merge(map,num,by="VILLNAME",all=T)
+map[is.na(map)] <- 0
+```
+
+```{r}
+#分別建立北區與中西區的檔案
+library(ggplot2)
+summary(map$Freq)
+map_N <- map[map$TOWNNAME=="北區",]
+map_MW <- map[map$TOWNNAME=="中西區",]
+```
+
+由兩區地圖可以看出，三號候選人在西北方有較高的支持度，尤其是在大港里。在東南部分支持者較少。
+
+```{r}
+#繪製兩區地圖
+coord <- as.data.frame(st_centroid(map))
+f <- st_coordinates(st_centroid(map))
+ggplot(data = map) +
+  geom_sf(aes(fill = Freq)) +
+  scale_fill_gradient(low="white",high="red",name = "支持(3)人數",limits=c(0,23))+
+  geom_text(data = coord, aes(x = f[,1], y = f[,2], label = coord$VILLNAME), 
+          size = 2, color = "black", vjust =0)
+```
+
+從單一北區地圖可以看到北區有許多人支持三號候選人。
+
+```{r}
+#北區地圖
+coord_N <- as.data.frame(st_centroid(map_N))
+f_N <- st_coordinates(st_centroid(map_N))
+ggplot(data = map_N) +
+    geom_sf(aes(fill = Freq)) +
+    scale_fill_gradient(low="white",high="red",name = "縣市區",limits=c(0,23))+
+    geom_text(data = coord_N, aes(x = f_N[,1], y = f_N[,2], label = coord_N$VILLNAME), 
+          size = 2.75, color = "black", vjust =0)
+
+```
+
+從中西區地圖來看，在中西區支持三號候選人的人較少，如果想要增加影響力可以考慮往中西區進行宣傳。
+
+```{r}
+#中西區地圖
+coord_MW <- as.data.frame(st_centroid(map_MW))
+f_MW <- st_coordinates(st_centroid(map_MW))
+ggplot(data = map_MW) +
+  geom_sf(aes(fill = Freq)) +
+  scale_fill_gradient(low="white",high="red",name = "縣市區",limits=c(0,23))+
+  geom_text(data = coord_MW, aes(x = f_MW[,1], y = f_MW[,2], label = coord_MW$VILLNAME), 
+          size = 2.75, color = "black", vjust =0)
+```
