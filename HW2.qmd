@@ -1,0 +1,459 @@
+---
+title: "HW2"
+date: today
+author: 第六組
+format:
+ pdf:
+    include-in-header:
+      - text: |
+         \usepackage{setspace,relsize}
+         \usepackage{geometry}
+         \geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+mainfont: "Microsoft JhengHei UI"
+toc: true
+lang: zh-Tw
+documentclass: article
+pdf-engine: xelatex
+execute:
+  tidy: true
+---
+
+# Question 1
+1.  分析所有候選人的知名度、支持度。
+
+將檔案讀取並檢查。由summary()可以看出，此資料多為類別型變數。
+
+```{r setup, include=FALSE}
+library(showtext)
+showtext_auto()
+par(family = "STKaiti")
+```
+
+```{r}
+#讀取檔案
+library(readxl)
+data <- read_excel("C:/Users/zach1/Downloads/cleaned_dataset.xlsx")
+head(data)
+summary(data)
+```
+問題四為代表候選人的知名度，我們發現這筆資料進行過整理，其1到8的順序不一定
+代表受訪者回答的順序，
+因此我們只能進行次數的整理。
+由以下表格可看出，最具知名度的為三號候選人，接著是七號、一號、六號...。
+```{r}
+
+f <- cbind(data$v4_1,data$v4_2,data$v4_3,data$v4_4,data$v4_5,data$v4_6,data$v4_7,data$v4_8)
+sort(table(f),decreasing=T)
+
+```
+
+
+將問題5(若明天就要投票，請問您會把票投給誰?)做為候選人的支持度，並分別列出由小到大的表
+
+格、樣本比例表格與次數的直條圖。
+
+```{r fig.width=10, fig.height=15}
+sort(table(data$v5),decreasing = T)
+round(sort(table(data$v5),decreasing = T)/length(data$v1),digits = 4)
+barplot(table(data$v5))
+```
+
+若將樣本比例以圓餅圖表示(如下)，則可以發現去除"無反應"與"尚未決定"的選項，以3號候選人所
+
+佔比例最大(12.27%)，其次為7號候選人(11.67%)。
+
+```{r}
+pie(sort(table(data$v5)),cex=0.7)
+legend("topleft",legend=c("尚未決定:32.79%","無反應:16.10%","3號:12.27%",
+                          "7號:11.67%","1號:9.46%","6號:5.86%","4號:4.73%",
+                          "10號:3.17%","5號:1.97%","91:0.60%","2號:0.54%",
+                          "9號:0.48%","8號:0.36%"),cex = 0.7)
+
+```
+
+接著，假設這10位候選人與"無反應"、"尚未決定"和"91"服從Multinomial distribution，如下Eq(1)
+
+所示，則可以進行區間估計，如Eq(2)所示。
+
+$$
+\text{}\textbf{X} \sim  Multinom(n,\textbf{p}), \text{where} \textbf{ p} \text{ equals to } \text{}[p_{1},p_{2},...,p_{12}]. \text{         }(1)
+$$
+
+$$
+\text{}\hat{se}\text{}(X_{i}) \text{}=\sqrt{\frac{\hat{p_{i}}(\hat{p_{i}}-1)}{n}}\text{}, C.I.(\large{p_{i}})=\hat{p_{i}}\pm Z_{\frac{\alpha}{2}}(2)
+$$\
+
+計算 $p_{i}$ 的 confidence interval
+
+```{r}
+n <- length(data$v1)
+p <- sort(table(data$v5),decreasing = T)/n
+se <- ((p*(1-p))/n)^0.5
+lower <- p-1.96*se
+upper <- p+1.96*se
+round(se,3)
+CI <- data.frame(matrix(ncol=1))
+for (i in 1:13){
+   CI[i] <- paste("[",round(lower[i],digits = 3),",",round(upper[i],3),"]") 
+}
+colnames(CI) <- c("尚未決定","無反應","3號","7號","1號","6號","4號","10號","5號","91","2號","9號","8號")
+
+CI
+```
+# Question 2
+
+## Data Import
+
+```{r}
+#setwd("C:/Users/user/Desktop/教科書/4-1(113-1)/stat_consult/HW2")
+library(dplyr)
+library(readxl)
+library(knitr)
+# Read the dataset (adjust the path as necessary)
+#file_path <- "cleaned_dataset.xlsx"
+#data <- read_excel(file_path)
+
+# View the first few rows of the data to understand its structure
+kable(head(data),caption = "head of data")
+
+```
+
+## 把v4中有提及3號候選人的資料挑出
+
+```{r}
+library(showtext)
+
+# Enable showtext to use system fonts
+showtext_auto()
+
+# Filter data related to Candidate 3
+candidate_3_data <- data %>%
+  filter(grepl("3號", v4_1) | grepl("3號", v4_2) | grepl("3號", v4_3))
+
+# Group by region and summarize the support count for Candidate 3
+support_by_region <- candidate_3_data %>%
+  group_by(v1) %>%
+  summarize(count = n())
+kable(support_by_region, caption = "Table of support by region")
+# Group by age and summarize the support count for Candidate 3
+support_by_age <- candidate_3_data %>%
+  group_by(v6) %>%
+  summarize(count = n())
+kable(support_by_age, caption = "Table of support by age")
+
+# Group by gender and summarize the support count for Candidate 3
+support_by_gender <- candidate_3_data %>%
+  group_by(v8) %>%
+  summarize(count = n())
+kable(support_by_gender, caption = "Table of support by gender")
+
+# Group by education and summarize the support count for Candidate 3
+support_by_education <- candidate_3_data %>%
+  group_by(v7) %>%
+  summarize(count = n())
+kable(support_by_education, caption = "Table of support by education")
+
+#plot 
+library(ggplot2)
+ggplot(support_by_region, aes(x = v1, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "Region", y = "Count", title = "Barplot of Region Counts") +
+  theme_minimal()
+ggplot(support_by_age, aes(x = v6, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "age", y = "Count", title = "Barplot of age Counts") +
+  theme_minimal()
+ggplot(support_by_education, aes(x = v7, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "education", y = "Count", title = "Barplot of education Counts") +
+  theme_minimal()
+ggplot(support_by_gender, aes(x = v8, y = count)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(x = "gender", y = "Count", title = "Barplot of gender Counts") +
+  theme_minimal()
+
+```
+
+從上方之表和圖可以發現知道3號候選人有一些地區上和年齡上的差異。
+
+## Chi-squre test
+
+### 性別與地區
+```{r}
+
+####################chi-square test##############
+# 建立性別與地區的交叉表
+gender_region <- table(candidate_3_data$v8, candidate_3_data$v1)
+
+# 檢視交叉表
+kable(gender_region,caption ="性別與地區的交叉表")
+# 執行卡方檢定 (性別與支持的關聯性)
+chi_g_r <- chisq.test(gender_region)
+
+# 顯示檢定結果
+print(chi_g_r)
+
+```
+
+從上方的chi-square test 中可以發現其p-value$>0.05$，因此不拒絕虛無假設(地區與性別獨立)，
+
+這代表在知道3號候選人的人們中，候選人不需要因為地區之不同後改變針對性別相關議題的策略。
+
+### 年齡與地區
+```{r}
+
+###
+# 建立年齡與地區的交叉表
+age_region <- table(candidate_3_data$v6, candidate_3_data$v1)
+
+
+# 檢視交叉表
+kable(age_region,caption = "年齡與地區的交叉表")
+# 執行卡方檢定 (年齡與地區的關聯性)
+chi_a_r <- chisq.test(age_region)
+
+# 顯示檢定結果
+kable(chi_a_r$expected,caption = "各分類之期望值")
+```
+
+從Table 8來看，有些地方期望值無大於5，因此重新分類，將20-39歲的定義為年輕人，40-59歲定義為
+中年人和60歲以上定義為老年人。
+
+```{r}
+# 將年齡組別進行合併
+candidate_3_data_1 <- candidate_3_data %>%
+  mutate(age_group = case_when(
+    v6 %in% c("20-29歲", "30-39歲") ~ "年輕人",
+    v6 %in% c("40-49歲", "50-59歲") ~ "中年人",
+    v6 == "60歲及以上" ~ "老年人",
+    TRUE ~ v6  # 保持其他情況不變
+  ))
+
+# 建立合併後的年齡與地區的交叉表
+age_region_combined <- table(candidate_3_data_1$age_group, candidate_3_data_1$v1)
+
+# 檢視交叉表
+kable(age_region_combined,caption = "年齡與地區的交叉表")
+
+# 重新執行卡方檢定
+chi_a_r_combined <- chisq.test(age_region_combined)
+
+# 顯示檢定結果
+print(chi_a_r_combined) #p-value<0.05，拒絕H0，認識3號的地區和年齡有關。
+
+# 檢視期望頻數
+kable(chi_a_r_combined$expected,caption = "各分類之期望值")
+
+library(ggplot2)
+
+# 將交叉表轉換為數據框
+age_region_df <- as.data.frame(age_region_combined)
+
+# 創建條形圖來比較各地區的年齡層支持
+ggplot(age_region_df, aes(Var1, Freq, fill = Var2)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "地區與年齡層知名度比較", x = "年齡層", y = "知名度", fill = "地區")
+```
+
+因為不知道/拒答的比例不高，將其省略，而從卡方檢定、交叉表和各分類之期望
+值可以得到以下結論:
+
+-   **卡方檢定**:
+    -   從結果可知其拒絕虛無假設，代表年齡層和地區是有相關的。
+    
+-   **中西區**：
+
+    -   **老年人**：實際支持 61 人，明顯高於期望支持數 47.53。這說明60歲及以上的年齡層在中西區
+    的支持較強，應著重針對這個群體進行宣傳。
+
+    -   **中年人**：實際支持 25 人，低於期望支持數 35.65。這個年齡層的支持度低於預期
+    ，可能需要加強宣傳。
+
+    -   **年輕人**：實際支持 4 人，略低於期望支持數 6.38。這個年齡層的支持者數量較少，
+    但差異不大，
+    應視資源投入情況決定是否加強針對這個群體的宣傳。
+
+-   **北區**：
+
+    -   **老年人**：實際支持 155 人，略低於期望支持數 168.47。這個年齡層支持度仍然
+    相當高，但有些低於期望，
+    可能需要進一步鞏固這個群體的支持。
+
+    -   **中年人**：實際支持 137 人，高於期望支持數 126.35，這表明這個年齡層對候選人
+    的支持較高，
+    可以維持此群體的宣傳。
+
+    -   **年輕人歲**：實際支持 25 人，高於期望支持數 22.62，這表明這個年齡層的支持略高於
+    期望，可以考慮繼續關注。
+    
+### 性別與年齡
+```{r}
+
+###
+# 建立性別與年齡的交叉表
+gender_age <- table(candidate_3_data$v8, candidate_3_data$v6)
+
+# 檢視交叉表
+kable(gender_age,caption = "性別與地區之交叉表")
+# 執行卡方檢定 (性別與地區的關聯性)
+chi_g_a <- chisq.test(gender_age)
+
+# 顯示檢定結果
+kable(chi_g_a$expected,caption = "性別與地區之期望值")
+
+# 建立合併後的年齡與性別的交叉表
+age_gender_combined <- table(candidate_3_data_1$age_group, candidate_3_data_1$v8)
+
+# 檢視交叉表
+kable(age_gender_combined,caption = "性別與地區之交叉表")
+
+# 重新執行卡方檢定
+chi_a_g_combined <- chisq.test(age_gender_combined)
+
+# 顯示檢定結果
+print(chi_a_g_combined) 
+
+# 檢視期望頻數
+kable(chi_a_g_combined$expected,caption = "年齡與性別的交叉表之期望值")
+
+```
+做與地區和年齡層的卡方檢定的一樣動作，而從上方的表和檢定可知其檢定結果不拒絕虛無
+假設，也就是說在知道3號
+候選人的樣本中性別和年齡層為獨立的。
+
+
+使用地圖進行競選策略規劃。
+
+```{r}
+library(sf)
+#讀地圖檔
+map <- st_read("C:/Users/zach1/Desktop/統計/空間地圖/村(里)界(TWD97經緯度)1130807/VILLAGE_NLSC_1130807.shp")
+map <- map[map$COUNTYNAME=="臺南市",]
+map <- map[map$TOWNNAME=="北區"|map$TOWNNAME=="中西區",]
+```
+
+```{r}
+#將選擇三號的受訪者建立次數的dataframe
+#並把次數併入地圖檔案中，方便後續繪製
+candidate_3_data <- data[data$v5=="(3號)",]
+num <- data.frame(table(c(candidate_3_data$v2,candidate_3_data$v3)))
+num <- num[c(-33,-48,-10),]
+colnames(num) <- c("VILLNAME", "Freq")
+map <- merge(map,num,by="VILLNAME",all=T)
+map[is.na(map)] <- 0
+```
+
+```{r}
+#分別建立北區與中西區的檔案
+library(ggplot2)
+summary(map$Freq)
+map_N <- map[map$TOWNNAME=="北區",]
+map_MW <- map[map$TOWNNAME=="中西區",]
+```
+
+由兩區地圖可以看出，三號候選人在西北方有較高的支持度，尤其是在大港里。在東南部分支持者較少。
+
+```{r}
+#繪製兩區地圖
+coord <- as.data.frame(st_centroid(map))
+f <- st_coordinates(st_centroid(map))
+ggplot(data = map) +
+  geom_sf(aes(fill = Freq)) +
+  scale_fill_gradient(low="white",high="red",name = "支持(3)人數",limits=c(0,23))+
+  geom_text(data = coord, aes(x = f[,1], y = f[,2], label = coord$VILLNAME), 
+          size = 2, color = "black", vjust =0)
+```
+
+從單一北區地圖可以看到北區有許多人支持三號候選人。
+
+```{r}
+#北區地圖
+coord_N <- as.data.frame(st_centroid(map_N))
+f_N <- st_coordinates(st_centroid(map_N))
+ggplot(data = map_N) +
+    geom_sf(aes(fill = Freq)) +
+    scale_fill_gradient(low="white",high="red",name = "縣市區",limits=c(0,23))+
+    geom_text(data = coord_N, aes(x = f_N[,1], y = f_N[,2], label = coord_N$VILLNAME), 
+          size = 2.75, color = "black", vjust =0)
+
+```
+
+從中西區地圖來看，在中西區支持三號候選人的人較少，如果想要增加影響力可以考慮往中西區進行宣傳。
+
+```{r}
+#中西區地圖
+coord_MW <- as.data.frame(st_centroid(map_MW))
+f_MW <- st_coordinates(st_centroid(map_MW))
+ggplot(data = map_MW) +
+  geom_sf(aes(fill = Freq)) +
+  scale_fill_gradient(low="white",high="red",name = "縣市區",limits=c(0,23))+
+  geom_text(data = coord_MW, aes(x = f_MW[,1], y = f_MW[,2], label = coord_MW$VILLNAME), 
+          size = 2.75, color = "black", vjust =0)
+```
+
+
+#Question 3
+
+```{r}
+
+# Load necessary libraries
+library(caret)
+library(dplyr)
+library(readxl)
+
+# Read the dataset
+#file_path <- "cleaned_dataset.xlsx"
+#data <- read_excel(file_path)
+data <- read_excel("C:/Users/zach1/Downloads/cleaned_dataset.xlsx")
+
+
+# Create a binary variable to reflect support for Candidate 3
+data <- data %>%
+  mutate(supports_candidate_3 = ifelse(grepl("3號", v4_1) | grepl("3號", v4_2) | 
+                                         grepl("3號", v4_3), 1, 0))
+
+# Select relevant columns for the model (adjust column names as needed)
+data <- data %>%
+  select(v1, v6, v7, v8, supports_candidate_3)  # Replace with actual column names
+
+# Convert categorical variables to factors
+data$v1 <- as.factor(data$v1)  # Region
+data$v6 <- as.factor(data$v6)  # Age group
+data$v7 <- as.factor(data$v7)  # Education level
+data$v8 <- as.factor(data$v8)  # Gender
+
+# Ensure there are no missing values
+data <- na.omit(data)
+
+# Set up cross-validation method (e.g., 10-fold cross-validation)
+train_control <- trainControl(method = "cv", number = 10)
+
+# Train the logistic regression model using cross-validation
+model_cv <- train(supports_candidate_3 ~ ., data = data,
+                  method = "glm", family = binomial, trControl = train_control)
+
+# Output the results of cross-validation
+print(model_cv)
+
+# Evaluate model performance
+predictions <- predict(model_cv, newdata = data)
+
+# Confusion matrix to evaluate the accuracy of the predictions
+# confusionMatrix(predictions, as.factor(data$supports_candidate_3))
+
+# Summary of the Approach:
+# Random Forest Algorithm: The train() function uses method = "rf" to specify 
+# Random Forest as the algorithm.
+# Cross-Validation: The model is evaluated using 10-fold cross-validation to provide a
+# reliable performance estimate.
+# Prediction and Evaluation: Predictions are made on the dataset, and the performance
+# is evaluated with a confusion matrix 
+# to check the model’s accuracy in predicting support for Candidate 3.
+
+# Benefits:
+# Non-linear Relationships: Random Forests can model complex interactions between features.
+# Robust to Overfitting: Cross-validation helps to ensure that the model generalizes well.
+
+
+```
+
